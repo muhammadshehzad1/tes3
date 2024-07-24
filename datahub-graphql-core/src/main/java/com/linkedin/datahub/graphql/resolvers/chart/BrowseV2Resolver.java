@@ -58,7 +58,7 @@ public class BrowseV2Resolver implements DataFetcher<CompletableFuture<BrowseRes
             ? resolveView(_viewService, UrnUtils.getUrn(input.getViewUrn()), context.getAuthentication())
             : null;
         final String pathStr = input.getPath().size() > 0 ? BROWSE_PATH_V2_DELIMITER + String.join(BROWSE_PATH_V2_DELIMITER, input.getPath()) : "";
-        final Filter filter = ResolverUtils.buildFilter(null, input.getOrFilters());
+        final Filter filter = SearchUtils.getAuthorizedBaseFilter(context,ResolverUtils.buildFilter(null, input.getOrFilters()), "BrowseV2Resolver");
 
         BrowseResultV2 browseResults = _entityClient.browseV2(
             entityName,

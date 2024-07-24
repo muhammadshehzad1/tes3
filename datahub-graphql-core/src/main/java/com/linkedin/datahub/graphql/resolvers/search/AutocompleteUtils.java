@@ -37,8 +37,8 @@ public class AutocompleteUtils {
     final int limit = input.getLimit() != null ? input.getLimit() : DEFAULT_LIMIT;
 
     final List<CompletableFuture<AutoCompleteResultForEntity>> autoCompletesFuture = entities.stream().map(entity -> CompletableFuture.supplyAsync(() -> {
-      final Filter filter = ResolverUtils.buildFilter(input.getFilters(), input.getOrFilters());
-      final Filter finalFilter = view != null
+        final Filter filter = SearchUtils.getAuthorizedBaseFilter( environment.getContext(), ResolverUtils.buildFilter(input.getFilters(), input.getOrFilters()), "AutocompleteUtils");
+        final Filter finalFilter = view != null
           ? SearchUtils.combineFilters(filter, view.getDefinition().getFilter())
           : filter;
 

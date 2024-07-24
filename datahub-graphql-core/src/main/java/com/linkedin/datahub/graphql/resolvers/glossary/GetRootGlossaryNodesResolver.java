@@ -7,6 +7,7 @@ import com.linkedin.datahub.graphql.generated.EntityType;
 import com.linkedin.datahub.graphql.generated.GetRootGlossaryEntitiesInput;
 import com.linkedin.datahub.graphql.generated.GetRootGlossaryNodesResult;
 import com.linkedin.datahub.graphql.generated.GlossaryNode;
+import com.linkedin.datahub.graphql.resolvers.search.SearchUtils;
 import com.linkedin.entity.client.EntityClient;
 import com.linkedin.metadata.Constants;
 import com.linkedin.metadata.query.filter.Condition;
@@ -47,19 +48,19 @@ public class GetRootGlossaryNodesResolver implements DataFetcher<CompletableFutu
       final Integer count = input.getCount();
 
       try {
-        final Filter filter = buildGlossaryEntitiesFilter();
+        final Filter filter = SearchUtils.getAuthorizedBaseFilter(context,buildGlossaryEntitiesFilter(), "GetRootGlossaryNodesResolver");
         final SearchResult gmsNodesResult = _entityClient.filter(
-            Constants.GLOSSARY_NODE_ENTITY_NAME,
-            filter,
-            null,
-            start,
-            count,
-            context.getAuthentication());
+                Constants.GLOSSARY_NODE_ENTITY_NAME,
+                filter,
+                null,
+                start,
+                count,
+                context.getAuthentication());
 
         final List<Urn> glossaryNodeUrns = gmsNodesResult.getEntities()
-            .stream()
-            .map(SearchEntity::getEntity)
-            .collect(Collectors.toList());
+                .stream()
+                .map(SearchEntity::getEntity)
+                .collect(Collectors.toList());
 
         final GetRootGlossaryNodesResult result = new GetRootGlossaryNodesResult();
         result.setNodes(mapUnresolvedGlossaryNodes(glossaryNodeUrns));
@@ -76,16 +77,16 @@ public class GetRootGlossaryNodesResolver implements DataFetcher<CompletableFutu
 
   private Filter buildGlossaryEntitiesFilter() {
     CriterionArray array = new CriterionArray(
-        ImmutableList.of(
-            new Criterion()
-                .setField("hasParentNode")
-                .setValue("false")
-                .setCondition(Condition.EQUAL)
-        ));
+            ImmutableList.of(
+                    new Criterion()
+                            .setField("hasParentNode")
+                            .setValue("false")
+                            .setCondition(Condition.EQUAL)
+            ));
     final Filter filter = new Filter();
     filter.setOr(new ConjunctiveCriterionArray(ImmutableList.of(
-        new ConjunctiveCriterion()
-            .setAnd(array)
+            new ConjunctiveCriterion()
+                    .setAnd(array)
     )));
     return filter;
   }

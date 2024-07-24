@@ -54,7 +54,7 @@ public class AggregateAcrossEntitiesResolver implements DataFetcher<CompletableF
           ? resolveView(_viewService, UrnUtils.getUrn(input.getViewUrn()), context.getAuthentication())
           : null;
 
-      final Filter baseFilter = ResolverUtils.buildFilter(null, input.getOrFilters());
+      final Filter baseFilter = SearchUtils.getAuthorizedBaseFilter(context,ResolverUtils.buildFilter(null, input.getOrFilters()), "AggregateAcrossEntitiesResolver");
 
       final SearchFlags searchFlags = mapInputFlags(input.getSearchFlags());
 

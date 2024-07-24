@@ -7,7 +7,8 @@ import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.entity.client.EntityClient;
 import com.linkedin.metadata.authorization.PoliciesConfig;
-import com.linkedin.policy.DataHubPolicyInfo;
+import com.linkedin.metadata.query.filter.CriterionArray;
+import com.linkedin.policy.*;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -20,7 +21,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+
+import io.ebeaninternal.server.deploy.BeanDescriptor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -34,6 +39,10 @@ import lombok.extern.slf4j.Slf4j;
 // TODO: Decouple this from all Rest.li objects if possible.
 @Slf4j
 public class DataHubAuthorizer implements Authorizer {
+
+  /**
+   * Entity Types String Mapper to map the Entity Types correctly due to various formats
+   */
 
   public enum AuthorizationMode {
     /**
@@ -63,11 +72,11 @@ public class DataHubAuthorizer implements Authorizer {
   public static final String ALL = "ALL";
 
   public DataHubAuthorizer(
-      final Authentication systemAuthentication,
-      final EntityClient entityClient,
-      final int delayIntervalSeconds,
-      final int refreshIntervalSeconds,
-      final AuthorizationMode mode) {
+          final Authentication systemAuthentication,
+          final EntityClient entityClient,
+          final int delayIntervalSeconds,
+          final int refreshIntervalSeconds,
+          final AuthorizationMode mode) {
     _systemAuthentication = Objects.requireNonNull(systemAuthentication);
     _mode = Objects.requireNonNull(mode);
     _policyEngine = new PolicyEngine(systemAuthentication, Objects.requireNonNull(entityClient));
@@ -98,7 +107,7 @@ public class DataHubAuthorizer implements Authorizer {
       if (isRequestGranted(policy, request, resolvedResourceSpec)) {
         // Short circuit if policy has granted privileges to this actor.
         return new AuthorizationResult(request, AuthorizationResult.Type.ALLOW,
-            String.format("Granted by policy with type: %s", policy.getType()));
+                String.format("Granted by policy with type: %s", policy.getType()));
       }
     }
     return new AuthorizationResult(request, AuthorizationResult.Type.DENY,  null);
@@ -118,12 +127,49 @@ public class DataHubAuthorizer implements Authorizer {
   }
 
   /**
+   * Finds policies granting the privilege.
+   */
+  public List<DataHubPolicyInfo> getPolicies(final PoliciesConfig.Privilege privilege) {
+    return _policyCache.getOrDefault(privilege.getType(),new ArrayList<>());
+  }
+
+  /**
+   * Gets ResolvedActorSpec
+   */
+  private ResolvedEntitySpec getResolvedActorSpec(String actorUrn) {
+    Optional<Urn> urn = getUrnFromRequestActor(actorUrn);
+    return urn.map(value -> _entitySpecResolver.resolve(
+            new EntitySpec(value.getEntityType(), actorUrn))).orElse(null);
+  }
+
+  /**
+   * Get ResolvedEntitySpec
+   */
+  public Optional<ResolvedEntitySpec> getResolvedEntitySpec(Optional<EntitySpec> entitySpec) {
+    return  entitySpec.map(_entitySpecResolver::resolve);
+  }
+
+  /**
+   * Gets info regarding a particular privilege access across all entities
+   */
+  public PolicyEngine.PrivilegeInfoAcrossEntities getPrivilegeInfoAcrossEntities(List<String> entityTypes, PoliciesConfig.Privilege privilege, String actorUrn) {
+
+    List<DataHubPolicyInfo> policiesToEvaluate = getPolicies(privilege);
+    ResolvedEntitySpec resolvedActorSpec = getResolvedActorSpec(actorUrn);
+
+    if (resolvedActorSpec == null) return null;
+
+    return _policyEngine.getPrivilegeInfoAcrossEntities(entityTypes, privilege, policiesToEvaluate, resolvedActorSpec, _entitySpecResolver);
+
+  }
+
+  /**
    * Retrieves the current list of actors authorized to for a particular privilege against
    * an optional resource
    */
   public AuthorizedActors authorizedActors(
-      final String privilege,
-      final Optional<EntitySpec> resourceSpec) {
+          final String privilege,
+          final Optional<EntitySpec> resourceSpec) {
     // Step 1: Find policies granting the privilege.
     final List<DataHubPolicyInfo> policiesToEvaluate = _policyCache.getOrDefault(privilege, new ArrayList<>());
 
@@ -198,10 +244,10 @@ public class DataHubAuthorizer implements Authorizer {
     final ResolvedEntitySpec resolvedActorSpec = _entitySpecResolver.resolve(
             new EntitySpec(actorUrn.get().getEntityType(), request.getActorUrn()));
     final PolicyEngine.PolicyEvaluationResult result = _policyEngine.evaluatePolicy(
-        policy,
-        resolvedActorSpec,
-        request.getPrivilege(),
-        resourceSpec
+            policy,
+            resolvedActorSpec,
+            request.getPrivilege(),
+            resourceSpec
     );
     return result.isGranted();
   }
@@ -242,7 +288,7 @@ public class DataHubAuthorizer implements Authorizer {
         while (start < total) {
           try {
             final PolicyFetcher.PolicyFetchResult
-                policyFetchResult = _policyFetcher.fetchPolicies(start, count, _systemAuthentication);
+                    policyFetchResult = _policyFetcher.fetchPolicies(start, count, _systemAuthentication);
 
             addPoliciesToCache(newCache, policyFetchResult.getPolicies());
 
@@ -250,7 +296,7 @@ public class DataHubAuthorizer implements Authorizer {
             start = start + count;
           } catch (Exception e) {
             log.error(
-                "Failed to retrieve policy urns! Skipping updating policy cache until next refresh. start: {}, count: {}", start, count, e);
+                    "Failed to retrieve policy urns! Skipping updating policy cache until next refresh. start: {}, count: {}", start, count, e);
             return;
           }
           synchronized (_policyCache) {
@@ -265,7 +311,7 @@ public class DataHubAuthorizer implements Authorizer {
     }
 
     private void addPoliciesToCache(final Map<String, List<DataHubPolicyInfo>> cache,
-        final List<PolicyFetcher.Policy> policies) {
+                                    final List<PolicyFetcher.Policy> policies) {
       policies.forEach(policy -> addPolicyToCache(cache, policy.getPolicyInfo()));
     }
 

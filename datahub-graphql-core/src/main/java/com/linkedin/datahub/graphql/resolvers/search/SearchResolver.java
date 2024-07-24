@@ -8,6 +8,7 @@ import com.linkedin.datahub.graphql.types.common.mappers.SearchFlagsInputMapper;
 import com.linkedin.datahub.graphql.types.mappers.UrnSearchResultsMapper;
 import com.linkedin.entity.client.EntityClient;
 import com.linkedin.metadata.query.SearchFlags;
+import com.linkedin.metadata.query.filter.Filter;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.opentelemetry.extension.annotations.WithSpan;
@@ -55,20 +56,29 @@ public class SearchResolver implements DataFetcher<CompletableFuture<SearchResul
     }
 
     return CompletableFuture.supplyAsync(() -> {
+
+      Filter baseFilter = ResolverUtils.buildFilter(input.getFilters(),
+              input.getOrFilters());
+
+      if (!entityName.equals("dataPlatform")) {
+        baseFilter = SearchUtils.getAuthorizedBaseFilter(environment.getContext(), ResolverUtils.buildFilter(input.getFilters(),
+                input.getOrFilters()), "SearchResolver");
+      }
+
+
       try {
         log.debug("Executing search. entity type {}, query {}, filters: {}, orFilters: {}, start: {}, count: {}, searchFlags: {}",
                 input.getType(), input.getQuery(), input.getFilters(), input.getOrFilters(), start, count, searchFlags);
 
         return UrnSearchResultsMapper.map(
-            _entityClient.search(entityName, sanitizedQuery, ResolverUtils.buildFilter(input.getFilters(),
-                    input.getOrFilters()), null, start, count, ResolverUtils.getAuthentication(environment),
-                    searchFlags));
+                _entityClient.search(entityName, sanitizedQuery, baseFilter, null, start, count, ResolverUtils.getAuthentication(environment),
+                        searchFlags));
       } catch (Exception e) {
         log.error("Failed to execute search: entity type {}, query {}, filters: {}, orFilters: {}, start: {}, count: {}, searchFlags: {}",
-            input.getType(), input.getQuery(), input.getFilters(), input.getOrFilters(), start, count, searchFlags);
+                input.getType(), input.getQuery(), input.getFilters(), input.getOrFilters(), start, count, searchFlags);
         throw new RuntimeException(
-            "Failed to execute search: " + String.format("entity type %s, query %s, filters: %s, orFilters: %s, start: %s, count: %s, searchFlags: %s",
-                input.getType(), input.getQuery(), input.getFilters(), input.getOrFilters(), start, count, searchFlags), e);
+                "Failed to execute search: " + String.format("entity type %s, query %s, filters: %s, orFilters: %s, start: %s, count: %s, searchFlags: %s",
+                        input.getType(), input.getQuery(), input.getFilters(), input.getOrFilters(), start, count, searchFlags), e);
       }
     });
   }

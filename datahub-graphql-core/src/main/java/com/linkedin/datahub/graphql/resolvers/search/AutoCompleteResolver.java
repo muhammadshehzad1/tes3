@@ -50,7 +50,7 @@ public class AutoCompleteResolver implements DataFetcher<CompletableFuture<AutoC
             throw new ValidationException("'query' parameter can not be null or empty");
         }
 
-        final Filter filter = ResolverUtils.buildFilter(input.getFilters(), input.getOrFilters());
+        final Filter filter = SearchUtils.getAuthorizedBaseFilter(environment.getContext(), ResolverUtils.buildFilter(input.getFilters(), input.getOrFilters()),"AutoCompleteResolver");
         final int limit = input.getLimit() != null ? input.getLimit() : DEFAULT_LIMIT;
             return CompletableFuture.supplyAsync(() -> {
                 try {
