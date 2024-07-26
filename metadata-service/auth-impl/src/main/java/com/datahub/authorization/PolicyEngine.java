@@ -23,11 +23,11 @@ import com.linkedin.policy.PolicyMatchFilter;
 
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-import io.ebeaninternal.server.deploy.BeanDescriptor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -522,12 +522,18 @@ public class PolicyEngine {
         return null;
       }
 
+      AtomicBoolean domainEntityFound = new AtomicBoolean(false);
+
       if (!criterionArrayInfo.hasUrnField()) {
 
         // If EntityType is defined but UrnField is not defined then specified EntityTypes have specified privilege
         if (isUserOrGroupMatch) {
           criterionArrayInfo.getTypeCriterion().getValues().forEach(entityType -> {
             String formattedEntityType = entityType.replace("_", "").toLowerCase();
+
+            if (formattedEntityType.equals("domain")) {
+              domainEntityFound.set(true);
+            }
             privilegeInfoAcrossEntities.getEntityPrivilegeInfo(formattedEntityType).setAppliedOnAllResources(true);
           });
         }
@@ -550,7 +556,7 @@ public class PolicyEngine {
       }
 
       // If domainField exists then add the domain urns if authorized.
-      if(criterionArrayInfo.hasDomainField()) {
+      if(criterionArrayInfo.hasDomainField() && domainEntityFound.get()) {
         boolean finalIsActorAuthorized1 = isUserOrGroupMatch;
         criterionArrayInfo.getDomainCriterion().getValues().forEach(rawUrn -> {
           Urn urn;
