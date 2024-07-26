@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.Entity;
 import com.linkedin.datahub.graphql.generated.EntityType;
@@ -22,10 +23,8 @@ import com.linkedin.metadata.query.filter.Filter;
 import com.linkedin.metadata.query.SearchFlags;
 import com.linkedin.metadata.search.SearchResult;
 import graphql.execution.DataFetcherResult;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -65,11 +64,17 @@ public class MLPrimaryKeyType implements SearchableEntityType<MLPrimaryKey, Stri
             .map(UrnUtils::getUrn)
             .collect(Collectors.toList());
 
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        mlPrimaryKeyUrns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> mlPrimaryKeyMap = _entityClient.batchGetV2(ML_PRIMARY_KEY_ENTITY_NAME,
                 new HashSet<>(mlPrimaryKeyUrns), null, context.getAuthentication());
 
-            final List<EntityResponse> gmsResults = mlPrimaryKeyUrns.stream()
+            final List<EntityResponse> gmsResults = filteredUrns.stream()
                 .map(primaryKeyUrn -> mlPrimaryKeyMap.getOrDefault(primaryKeyUrn, null))
                 .collect(Collectors.toList());
 

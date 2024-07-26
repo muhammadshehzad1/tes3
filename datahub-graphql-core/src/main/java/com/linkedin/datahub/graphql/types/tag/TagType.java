@@ -85,12 +85,18 @@ public class TagType implements com.linkedin.datahub.graphql.types.SearchableEnt
                 .map(UrnUtils::getUrn)
                 .collect(Collectors.toList());
 
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        tagUrns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> tagMap = _entityClient.batchGetV2(TAG_ENTITY_NAME, new HashSet<>(tagUrns),
                 null, context.getAuthentication());
 
             final List<EntityResponse> gmsResults = new ArrayList<>();
-            for (Urn urn : tagUrns) {
+            for (Urn urn : filteredUrns) {
                 gmsResults.add(tagMap.getOrDefault(urn, null));
             }
             return gmsResults.stream()

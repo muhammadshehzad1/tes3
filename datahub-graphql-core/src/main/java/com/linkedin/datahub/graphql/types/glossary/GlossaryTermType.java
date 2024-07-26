@@ -5,6 +5,7 @@ import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.data.template.StringArray;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.BrowsePath;
 import com.linkedin.datahub.graphql.generated.BrowseResults;
@@ -86,12 +87,18 @@ public class GlossaryTermType implements SearchableEntityType<GlossaryTerm, Stri
                 .map(UrnUtils::getUrn)
                 .collect(Collectors.toList());
 
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        glossaryTermUrns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> glossaryTermMap = _entityClient.batchGetV2(GLOSSARY_TERM_ENTITY_NAME,
                 new HashSet<>(glossaryTermUrns), ASPECTS_TO_RESOLVE, context.getAuthentication());
 
             final List<EntityResponse> gmsResults = new ArrayList<>();
-            for (Urn urn : glossaryTermUrns) {
+            for (Urn urn : filteredUrns) {
                 gmsResults.add(glossaryTermMap.getOrDefault(urn, null));
             }
             return gmsResults.stream()

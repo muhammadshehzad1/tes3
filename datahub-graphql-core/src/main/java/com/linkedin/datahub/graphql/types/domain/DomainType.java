@@ -3,6 +3,7 @@ package com.linkedin.datahub.graphql.types.domain;
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.urn.Urn;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.Domain;
 import com.linkedin.datahub.graphql.generated.Entity;
@@ -66,6 +67,12 @@ public class DomainType implements SearchableEntityType<Domain, String>, com.lin
         .map(this::getUrn)
         .collect(Collectors.toList());
 
+    final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+    domainUrns.forEach(urn -> {
+      filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+    });
+
     try {
       final Map<Urn, EntityResponse> entities = _entityClient.batchGetV2(
           Constants.DOMAIN_ENTITY_NAME,
@@ -74,7 +81,7 @@ public class DomainType implements SearchableEntityType<Domain, String>, com.lin
           context.getAuthentication());
 
       final List<EntityResponse> gmsResults = new ArrayList<>();
-      for (Urn urn : domainUrns) {
+      for (Urn urn : filteredUrns) {
         gmsResults.add(entities.getOrDefault(urn, null));
       }
       return gmsResults.stream()

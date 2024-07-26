@@ -142,11 +142,18 @@ public class NotebookType implements SearchableEntityType<Notebook, String>, Bro
     final List<Urn> urns = urnStrs.stream()
         .map(UrnUtils::getUrn)
         .collect(Collectors.toList());
+
+    final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+    urns.forEach(urn -> {
+      filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+    });
+
     try {
       final Map<Urn, EntityResponse> notebookMap = _entityClient.batchGetV2(NOTEBOOK_ENTITY_NAME, new HashSet<>(urns),
           ASPECTS_TO_RESOLVE, context.getAuthentication());
 
-      return urns.stream()
+      return filteredUrns.stream()
           .map(urn -> notebookMap.getOrDefault(urn, null))
           .map(entityResponse -> entityResponse == null
               ? null

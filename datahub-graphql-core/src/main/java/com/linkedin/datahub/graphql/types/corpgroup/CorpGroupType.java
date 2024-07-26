@@ -80,11 +80,17 @@ public class CorpGroupType implements SearchableEntityType<CorpGroup, String>, M
                     .map(UrnUtils::getUrn)
                     .collect(Collectors.toList());
 
+            final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+            corpGroupUrns.forEach(urn -> {
+                filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+            });
+
             final Map<Urn, EntityResponse> corpGroupMap = _entityClient.batchGetV2(CORP_GROUP_ENTITY_NAME,
                 new HashSet<>(corpGroupUrns), null, context.getAuthentication());
 
             final List<EntityResponse> results = new ArrayList<>();
-            for (Urn urn : corpGroupUrns) {
+            for (Urn urn : filteredUrns) {
                 results.add(corpGroupMap.getOrDefault(urn, null));
             }
             return results.stream()

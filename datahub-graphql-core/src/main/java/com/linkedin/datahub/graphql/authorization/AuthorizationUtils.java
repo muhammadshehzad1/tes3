@@ -45,6 +45,10 @@ public class AuthorizationUtils {
     return isAuthorized(context, Optional.empty(), PoliciesConfig.MANAGE_ACCESS_TOKENS);
   }
 
+  public static boolean canViewEntityPage(@Nonnull String entityType, @Nonnull String entityUrn, @Nonnull QueryContext context) {
+    return isAuthorized(context, Optional.of(new EntitySpec(entityType, entityUrn)), PoliciesConfig.VIEW_ENTITY_PAGE_PRIVILEGE);
+  }
+
   /**
    * Returns true if the current used is able to create Domains. This is true if the user has the 'Manage Domains' or 'Create Domains' platform privilege.
    */

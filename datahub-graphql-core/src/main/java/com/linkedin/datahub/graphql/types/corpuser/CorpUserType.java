@@ -82,6 +82,14 @@ public class CorpUserType implements SearchableEntityType<CorpUser, String>, Mut
                     .map(UrnUtils::getUrn)
                     .collect(Collectors.toList());
 
+            // Filtering UserUrns creates issue since it is called by other entities too.
+
+//            final ArrayList<Urn> filteredUrns = new ArrayList<>();
+//
+//            corpUserUrns.forEach(urn -> {
+//                filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+//            });
+
             final Map<Urn, EntityResponse> corpUserMap = _entityClient
                     .batchGetV2(CORP_USER_ENTITY_NAME, new HashSet<>(corpUserUrns), null,
                         context.getAuthentication());

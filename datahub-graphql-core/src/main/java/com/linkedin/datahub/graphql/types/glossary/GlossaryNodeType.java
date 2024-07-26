@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.Entity;
 import com.linkedin.datahub.graphql.generated.GlossaryNode;
 import com.linkedin.datahub.graphql.generated.EntityType;
@@ -60,12 +61,18 @@ public class GlossaryNodeType implements com.linkedin.datahub.graphql.types.Enti
         .map(UrnUtils::getUrn)
         .collect(Collectors.toList());
 
+    final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+    glossaryNodeUrns.forEach(urn -> {
+      filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+    });
+
     try {
       final Map<Urn, EntityResponse> glossaryNodeMap = _entityClient.batchGetV2(GLOSSARY_NODE_ENTITY_NAME,
           new HashSet<>(glossaryNodeUrns), ASPECTS_TO_RESOLVE, context.getAuthentication());
 
       final List<EntityResponse> gmsResults = new ArrayList<>();
-      for (Urn urn : glossaryNodeUrns) {
+      for (Urn urn : filteredUrns) {
         gmsResults.add(glossaryNodeMap.getOrDefault(urn, null));
       }
       return gmsResults.stream()

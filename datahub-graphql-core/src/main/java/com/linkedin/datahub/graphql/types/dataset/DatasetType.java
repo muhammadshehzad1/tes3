@@ -131,6 +131,12 @@ public class DatasetType implements SearchableEntityType<Dataset, String>, Brows
                 .map(UrnUtils::getUrn)
                 .collect(Collectors.toList());
 
+            final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+            urns.forEach(urn -> {
+                filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+            });
+
             final Map<Urn, EntityResponse> datasetMap =
                 _entityClient.batchGetV2(
                     Constants.DATASET_ENTITY_NAME,
@@ -139,7 +145,7 @@ public class DatasetType implements SearchableEntityType<Dataset, String>, Brows
                     context.getAuthentication());
 
             final List<EntityResponse> gmsResults = new ArrayList<>();
-            for (Urn urn : urns) {
+            for (Urn urn : filteredUrns) {
                 gmsResults.add(datasetMap.getOrDefault(urn, null));
             }
             return gmsResults.stream()

@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.DataProduct;
 import com.linkedin.datahub.graphql.generated.Entity;
@@ -72,13 +73,19 @@ public class DataProductType implements SearchableEntityType<DataProduct, String
       throws Exception {
     final List<Urn> dataProductUrns = urns.stream().map(UrnUtils::getUrn).collect(Collectors.toList());
 
+    final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+    dataProductUrns.forEach(urn -> {
+      filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+    });
+
     try {
       final Map<Urn, EntityResponse> entities =
           _entityClient.batchGetV2(DATA_PRODUCT_ENTITY_NAME, new HashSet<>(dataProductUrns), ASPECTS_TO_FETCH,
               context.getAuthentication());
 
       final List<EntityResponse> gmsResults = new ArrayList<>();
-      for (Urn urn : dataProductUrns) {
+      for (Urn urn : filteredUrns) {
         gmsResults.add(entities.getOrDefault(urn, null));
       }
       return gmsResults.stream()

@@ -5,6 +5,7 @@ import com.linkedin.common.urn.Urn;
 import com.linkedin.common.urn.UrnUtils;
 import com.linkedin.data.template.StringArray;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.BrowsePath;
 import com.linkedin.datahub.graphql.generated.BrowseResults;
@@ -29,10 +30,8 @@ import com.linkedin.metadata.query.filter.Filter;
 import com.linkedin.metadata.query.SearchFlags;
 import com.linkedin.metadata.search.SearchResult;
 import graphql.execution.DataFetcherResult;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -72,11 +71,17 @@ public class MLModelType implements SearchableEntityType<MLModel, String>, Brows
             .map(UrnUtils::getUrn)
             .collect(Collectors.toList());
 
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        mlModelUrns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> mlModelMap = _entityClient.batchGetV2(ML_MODEL_ENTITY_NAME,
                 new HashSet<>(mlModelUrns), null, context.getAuthentication());
 
-            final List<EntityResponse> gmsResults = mlModelUrns.stream()
+            final List<EntityResponse> gmsResults = filteredUrns.stream()
                 .map(modelUrn -> mlModelMap.getOrDefault(modelUrn, null))
                 .collect(Collectors.toList());
 

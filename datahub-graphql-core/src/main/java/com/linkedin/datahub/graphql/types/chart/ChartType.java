@@ -112,6 +112,13 @@ public class ChartType implements SearchableEntityType<Chart, String>, Browsable
         final List<Urn> urns = urnStrs.stream()
             .map(UrnUtils::getUrn)
             .collect(Collectors.toList());
+
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        urns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> chartMap =
                 _entityClient.batchGetV2(
@@ -121,7 +128,7 @@ public class ChartType implements SearchableEntityType<Chart, String>, Browsable
                     context.getAuthentication());
 
             final List<EntityResponse> gmsResults = new ArrayList<>();
-            for (Urn urn : urns) {
+            for (Urn urn : filteredUrns) {
                 gmsResults.add(chartMap.getOrDefault(urn, null));
             }
             return gmsResults.stream()

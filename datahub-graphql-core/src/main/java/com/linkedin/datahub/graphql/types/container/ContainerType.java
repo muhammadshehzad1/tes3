@@ -3,6 +3,7 @@ package com.linkedin.datahub.graphql.types.container;
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.urn.Urn;
 import com.linkedin.datahub.graphql.QueryContext;
+import com.linkedin.datahub.graphql.authorization.AuthorizationUtils;
 import com.linkedin.datahub.graphql.generated.AutoCompleteResults;
 import com.linkedin.datahub.graphql.generated.Container;
 import com.linkedin.datahub.graphql.generated.Entity;
@@ -82,6 +83,12 @@ public class ContainerType implements SearchableEntityType<Container, String>,
         .map(this::getUrn)
         .collect(Collectors.toList());
 
+    final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+    containerUrns.forEach(urn -> {
+      filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+    });
+
     try {
       final Map<Urn, EntityResponse> entities = _entityClient.batchGetV2(
           Constants.CONTAINER_ENTITY_NAME,
@@ -90,7 +97,7 @@ public class ContainerType implements SearchableEntityType<Container, String>,
           context.getAuthentication());
 
       final List<EntityResponse> gmsResults = new ArrayList<>();
-      for (Urn urn : containerUrns) {
+      for (Urn urn : filteredUrns) {
         gmsResults.add(entities.getOrDefault(urn, null));
       }
       return gmsResults.stream()

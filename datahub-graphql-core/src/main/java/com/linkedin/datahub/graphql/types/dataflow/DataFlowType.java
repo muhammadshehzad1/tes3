@@ -109,6 +109,13 @@ public class DataFlowType implements SearchableEntityType<DataFlow, String>, Bro
         final List<Urn> urns = urnStrs.stream()
             .map(UrnUtils::getUrn)
             .collect(Collectors.toList());
+
+        final ArrayList<Urn> filteredUrns = new ArrayList<>();
+
+        urns.forEach(urn -> {
+            filteredUrns.add(AuthorizationUtils.canViewEntityPage(urn.getEntityType(),urn.toString(),context) ? urn : null);
+        });
+
         try {
             final Map<Urn, EntityResponse> dataFlowMap =
                 _entityClient.batchGetV2(
@@ -118,7 +125,7 @@ public class DataFlowType implements SearchableEntityType<DataFlow, String>, Bro
                     context.getAuthentication());
 
             final List<EntityResponse> gmsResults = new ArrayList<>();
-            for (Urn urn : urns) {
+            for (Urn urn : filteredUrns) {
                 gmsResults.add(dataFlowMap.getOrDefault(urn, null));
             }
             return gmsResults.stream()
