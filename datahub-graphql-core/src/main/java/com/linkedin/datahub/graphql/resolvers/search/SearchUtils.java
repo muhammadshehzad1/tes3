@@ -490,7 +490,8 @@ public class SearchUtils {
     for (String entityType : entityTypes) {
       EntityPrivilegeInfo entityPrivilegeInfo = privilegeInfoAcrossEntities.getEntityPrivilegeInfo(entityType);
       if (entityPrivilegeInfo.isAppliedOnAllResources()) {
-        entityTypeWithPermissionArray.add(entityPrivilegeInfo.getEntityType());
+        String formattedEntityName = ENTITY_TYPE_MAP.get(entityPrivilegeInfo.getEntityType()).toString();
+        entityTypeWithPermissionArray.add(formattedEntityName);
       } else if (!entityPrivilegeInfo.getUrnsWithThisPrivilege().isEmpty()) {
         List<String> urns = entityPrivilegeInfo.getUrnsWithThisPrivilege().stream().map(Urn::toString).collect(Collectors.toList());
         urnWithPermissionArray.addAll(urns);
@@ -523,7 +524,7 @@ public class SearchUtils {
     // If user hasn't selected any filter, pass the modified filter that filters outs entities without the permission
     if (baseFilter == null) {
       modifiedFilter.setOr(conjunctiveCriterionArray);
-      return modifiedFilter;
+        return modifiedFilter;
     }
 
     boolean foundEntityType = false;
@@ -571,8 +572,9 @@ public class SearchUtils {
 
         if (entityPrivilegeInfo.isAppliedOnAllResources()) {
           criterion.setField("_entityType");
-          criterion.setValue(entityPrivilegeInfo.getEntityType());
-          criterion.setValues(new StringArray(entityPrivilegeInfo.getEntityType()));
+          String formattedEntityName = ENTITY_TYPE_MAP.get(entityPrivilegeInfo.getEntityType()).toString();
+          criterion.setValue(formattedEntityName);
+          criterion.setValues(new StringArray(formattedEntityName));
         } else if (!entityPrivilegeInfo.getUrnsWithThisPrivilege().isEmpty()) {
           criterion.setField("urn");
           List<String> urns = entityPrivilegeInfo.getUrnsWithThisPrivilege().stream().map(Urn::toString).collect(Collectors.toList());
